@@ -437,8 +437,8 @@ describe('compact flag', () => {
 // Registry tests
 // ---------------------------------------------------------------------------
 describe('tools registry', () => {
-  it('has the expected number of tools (41)', () => {
-    expect(tools).toHaveLength(41);
+  it('has the expected number of tools (42)', () => {
+    expect(tools).toHaveLength(42);
   });
 
   it('every tool has name, description, inputSchema, and executeLocal', () => {
@@ -457,14 +457,14 @@ describe('tools registry', () => {
     }
   });
 
-  it('local tools include create_model, create_form, add_form_field, create_dmn, deploy_process, list_open_diagrams, switch_diagram', () => {
+  it('local tools include create_model, create_form, add_form_field, create_dmn, deploy_process, list_open_diagrams, switch_diagram, get_mcp_documentation', () => {
     const localTools = tools.filter(t => t.executeLocal).map(t => t.name);
     expect(localTools).toEqual(
       expect.arrayContaining([
         'create_model', 'create_form', 'add_form_field', 'create_dmn', 'deploy_process',
-        'list_open_diagrams', 'switch_diagram',
+        'list_open_diagrams', 'switch_diagram', 'get_mcp_documentation',
       ])
     );
-    expect(localTools).toHaveLength(7);
+    expect(localTools).toHaveLength(8);
   });
 });

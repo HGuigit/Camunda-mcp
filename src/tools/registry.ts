@@ -448,6 +448,8 @@ export const switchDiagramSchema = z.object({
   name: z.string().optional().describe('Diagram name (partial match, case-insensitive)'),
 });
 
+export const getMcpDocumentationSchema = z.object({});
+
 /**
  * Describes a single MCP tool exposed by the plugin.
  */
@@ -558,4 +560,5 @@ export const tools: ToolDefinition[] = [
   // tab management
   { name: 'list_open_diagrams', description: 'Lists all open diagram tabs with their IDs, names, types, and file paths. Tabs are discovered as they become active — a tab must have been focused at least once to appear.', inputSchema: listOpenDiagramsSchema, executeLocal: true },
   { name: 'switch_diagram', description: 'Switches to a specific diagram tab by ID, file path, or name (partial match). At least one parameter must be provided. Makes the target tab active for all subsequent operations.', inputSchema: switchDiagramSchema, executeLocal: true },
+  { name: 'get_mcp_documentation', description: 'Retrieves the detailed documentation and best practices guide for all MCP tools available in the Camunda MCP Server. Useful for AI agents to understand how to interact effectively with the tools.', inputSchema: getMcpDocumentationSchema, executeLocal: true },
 ];

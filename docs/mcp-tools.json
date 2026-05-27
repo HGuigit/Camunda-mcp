@@ -1,0 +1,166 @@
+[
+  {
+    "name": "create_model",
+    "description": "Creates a new empty BPMN diagram tab in the Camunda Desktop Modeler."
+  },
+  {
+    "name": "add_start_event",
+    "description": "Places a BPMN Start Event on the canvas. Use parentId to nest inside an expanded subprocess."
+  },
+  {
+    "name": "add_task",
+    "description": "Places a BPMN Task (UserTask, ServiceTask, etc.) on the canvas. Use parentId to nest inside an expanded subprocess."
+  },
+  {
+    "name": "add_end_event",
+    "description": "Places a BPMN End Event on the canvas. Use parentId to nest inside an expanded subprocess."
+  },
+  {
+    "name": "connect_elements",
+    "description": "Connects two BPMN elements with a sequence flow. Use waypoints for custom routing (L-shaped, orthogonal)."
+  },
+  {
+    "name": "create_form",
+    "description": "Creates a new Camunda Form (.form) JSON file. Optionally include initial fields."
+  },
+  {
+    "name": "add_form_field",
+    "description": "Adds a field to an existing Camunda Form (.form) file."
+  },
+  {
+    "name": "link_form_to_task",
+    "description": "Links a Camunda Form to a UserTask by embedding the form JSON in the BPMN model and setting zeebe:formDefinition on the task."
+  },
+  {
+    "name": "add_gateway",
+    "description": "Places a BPMN Gateway (Exclusive, Parallel, Inclusive, EventBased) on the canvas. Use parentId to nest inside an expanded subprocess."
+  },
+  {
+    "name": "add_event",
+    "description": "Places an Intermediate or Boundary Event on the canvas, with optional event definition (Timer, Message, Signal, Error, etc). Use parentId to nest inside an expanded subprocess."
+  },
+  {
+    "name": "add_subprocess",
+    "description": "Places a Sub-Process or Call Activity on the canvas. Use parentId to nest inside an expanded subprocess."
+  },
+  {
+    "name": "set_properties",
+    "description": "Sets properties on a BPMN element: name, documentation, conditions, implementation type (Camunda 7 class/delegate/external or Camunda 8 Zeebe job type)."
+  },
+  {
+    "name": "set_io_mapping",
+    "description": "Sets input/output variable mappings on an element. Supports both Camunda 7 and Camunda 8 formats."
+  },
+  {
+    "name": "set_task_headers",
+    "description": "Sets key-value task headers on an element. Camunda 8: zeebe:TaskHeaders. Camunda 7: camunda:Properties."
+  },
+  {
+    "name": "list_elements",
+    "description": "Lists all BPMN elements in the current diagram with optional type filter."
+  },
+  {
+    "name": "get_element",
+    "description": "Returns detailed information about a specific BPMN element including properties, extensions, and connections."
+  },
+  {
+    "name": "delete_element",
+    "description": "Removes an element from the diagram."
+  },
+  {
+    "name": "get_diagram_xml",
+    "description": "Exports the current diagram as BPMN 2.0 XML."
+  },
+  {
+    "name": "import_xml",
+    "description": "Imports/replaces the current diagram from BPMN 2.0 XML."
+  },
+  {
+    "name": "move_element",
+    "description": "Moves an element to new coordinates on the canvas."
+  },
+  {
+    "name": "save_diagram",
+    "description": "Saves the current diagram as BPMN XML to a file path."
+  },
+  {
+    "name": "add_participant",
+    "description": "Adds a pool (bpmn:Participant) for collaboration diagrams."
+  },
+  {
+    "name": "add_lane",
+    "description": "Adds a lane inside a participant (pool)."
+  },
+  {
+    "name": "add_end_event_typed",
+    "description": "Places a typed End Event (Error, Escalation, Signal, Message, Terminate) on the canvas. Use parentId to nest inside an expanded subprocess."
+  },
+  {
+    "name": "add_message_flow",
+    "description": "Creates a message flow between elements in different pools."
+  },
+  {
+    "name": "add_annotation",
+    "description": "Adds a text annotation to the diagram, optionally associated with an element."
+  },
+  {
+    "name": "create_dmn",
+    "description": "Creates a new DMN decision table file."
+  },
+  {
+    "name": "deploy_process",
+    "description": "Deploys a BPMN process to a Camunda 8 Zeebe cluster. Requires ZEEBE_ADDRESS, ZEEBE_CLIENT_ID, ZEEBE_CLIENT_SECRET env vars."
+  },
+  {
+    "name": "resize_element",
+    "description": "Resizes a shape element (expanded subprocess, pool, lane, etc.) to the given width and height. The element center stays fixed."
+  },
+  {
+    "name": "set_flow_waypoints",
+    "description": "Replaces the visual waypoints on an existing sequence/message flow without modifying source, target, name, conditions, or extensions. Returns the updated waypoints."
+  },
+  {
+    "name": "auto_layout",
+    "description": "Smart branch-aware auto-layout: fans out gateway branches vertically, aligns merge gateways, routes flows orthogonally, positions boundary events. Use options to control spacing."
+  },
+  {
+    "name": "get_element_bounds",
+    "description": "Returns the exact rendered bounds, center, edge connection points, and waypoints (for flows) of an element. Useful for calculating coordinates."
+  },
+  {
+    "name": "clone_element",
+    "description": "Clones an element with all its properties, extensions, and configuration. Use deep=true for expanded subprocesses to also clone children and internal flows."
+  },
+  {
+    "name": "batch_operations",
+    "description": "Executes multiple tool operations in sequence. Use \"$ref:N\" in params to reference the elementId/connectionId from operation N. Returns results array."
+  },
+  {
+    "name": "add_group",
+    "description": "Adds a BPMN Group artifact (dashed-border rectangle) for visual grouping without affecting execution semantics."
+  },
+  {
+    "name": "patch_element",
+    "description": "Updates any combination of properties on a BPMN element in one call: name, documentation, conditions, implementation, waypoints, position. Superset of set_properties + set_flow_waypoints + move_element."
+  },
+  {
+    "name": "build_process",
+    "description": "Declarative process builder — creates all elements and flows in one call. Accepts user-friendly type names (serviceTask, exclusiveGateway, etc). Returns idMap mapping logical IDs to actual bpmn-js IDs. Set autoLayout=true to auto-position."
+  },
+  {
+    "name": "export_image",
+    "description": "Exports the current diagram as an image file (PNG or SVG). PNG uses an offscreen canvas for rasterization at configurable scale. Returns { saved, filePath, format, width, height }."
+  },
+  {
+    "name": "validate_layout",
+    "description": "Detects layout issues (overlaps, diagonal flows, misalignment, cramped elements, subprocess bounds) and generates actionable fixes. Set autoFix=true to apply all fixes automatically."
+  },
+  {
+    "name": "list_open_diagrams",
+    "description": "Lists all open diagram tabs with their IDs, names, types, and file paths. Tabs are discovered as they become active — a tab must have been focused at least once to appear."
+  },
+  {
+    "name": "switch_diagram",
+    "description": "Switches to a specific diagram tab by ID, file path, or name (partial match). At least one parameter must be provided. Makes the target tab active for all subsequent operations."
+  }
+]

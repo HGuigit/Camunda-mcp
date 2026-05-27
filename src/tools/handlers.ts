@@ -16,7 +16,7 @@ import {
   setFlowWaypointsSchema, autoLayoutSchema, getElementBoundsSchema,
   cloneElementSchema, batchOperationsSchema, addGroupSchema,
   patchElementSchema, buildProcessSchema, validateLayoutSchema, exportImageSchema,
-  listOpenDiagramsSchema, switchDiagramSchema,
+  listOpenDiagramsSchema, switchDiagramSchema, getMcpDocumentationSchema,
 } from './registry';
 
 const LOG_PREFIX = '[camunda-mcp]';
@@ -453,6 +453,20 @@ async function listOpenDiagrams(): Promise<CallToolResult> {
 }
 
 /**
+ * Returns the MCP detailed markdown documentation.
+ */
+async function getMcpDocumentation(): Promise<CallToolResult> {
+  const docsPath = path.resolve(process.cwd(), 'docs/mcp-server-docs.md');
+  if (fs.existsSync(docsPath)) {
+    const docs = fs.readFileSync(docsPath, 'utf-8');
+    return { content: [{ type: 'text', text: JSON.stringify({ documentation: docs }) }] };
+  } else {
+    // fallback if missing
+    return { content: [{ type: 'text', text: JSON.stringify({ documentation: "Documentation not found at docs/mcp-server-docs.md" }) }] };
+  }
+}
+
+/**
  * Switches to a specific diagram tab by ID, file path, or name.
  */
 async function switchDiagram(
@@ -599,6 +613,10 @@ export async function dispatch(
 
       case 'switch_diagram':
         result = await switchDiagram(params);
+        break;
+
+      case 'get_mcp_documentation':
+        result = await getMcpDocumentation();
         break;
 
       case 'add_start_event':
