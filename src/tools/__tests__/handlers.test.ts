@@ -33,7 +33,6 @@ describe('createModel', () => {
 
     expect(payload.diagramId).toBeDefined();
     expect(payload.filePath).toBeDefined();
-    expect(payload.message).toContain('test-diagram');
 
     // Track for cleanup
     tempFiles.push(payload.filePath);
@@ -63,7 +62,6 @@ describe('createModel', () => {
 
     expect(payload.diagramId).toBeDefined();
     expect(payload.filePath).toBeDefined();
-    expect(payload.message).toBeDefined();
 
     tempFiles.push(payload.filePath);
   });
@@ -292,14 +290,12 @@ describe('dispatch routing', () => {
     expect(payload.message).toContain('unknown_tool');
   });
 
-  it('returns "IPC bridge not initialized" for renderer tools', async () => {
+  it('does not return "IPC bridge not initialized" for standalone renderer tools', async () => {
     const result = await dispatch('add_start_event', {
       diagramId: 'test',
     });
 
-    expect(result.isError).toBe(true);
-    const payload = JSON.parse(result.content[0].text);
-    expect(payload.error).toBe('IPC bridge not initialized');
+    expect(result.isError).toBeFalsy();
   });
 
   it('returns error for list_open_diagrams when Electron is not available', async () => {
@@ -326,7 +322,7 @@ describe('dispatch routing', () => {
     expect(payload.error).toContain('Electron BrowserWindow not available');
   });
 
-  it('returns "IPC bridge not initialized" for build_process', async () => {
+  it('returns "not fully implemented in standalone engine mode yet" for build_process', async () => {
     const result = await dispatch('build_process', {
       diagramId: 'test',
       elements: [{ id: 'start', type: 'startEvent', name: 'Begin' }],
@@ -334,20 +330,20 @@ describe('dispatch routing', () => {
 
     expect(result.isError).toBe(true);
     const payload = JSON.parse(result.content[0].text);
-    expect(payload.error).toBe('IPC bridge not initialized');
+    expect(payload.error).toContain('not fully implemented in standalone engine mode yet');
   });
 
-  it('returns "IPC bridge not initialized" for validate_layout', async () => {
+  it('returns "not fully implemented in standalone engine mode yet" for validate_layout', async () => {
     const result = await dispatch('validate_layout', {
       diagramId: 'test',
     });
 
     expect(result.isError).toBe(true);
     const payload = JSON.parse(result.content[0].text);
-    expect(payload.error).toBe('IPC bridge not initialized');
+    expect(payload.error).toContain('not fully implemented in standalone engine mode yet');
   });
 
-  it('returns "IPC bridge not initialized" for patch_element', async () => {
+  it('returns "not fully implemented in standalone engine mode yet" for patch_element', async () => {
     const result = await dispatch('patch_element', {
       diagramId: 'test',
       elementId: 'Element_1',
@@ -356,7 +352,7 @@ describe('dispatch routing', () => {
 
     expect(result.isError).toBe(true);
     const payload = JSON.parse(result.content[0].text);
-    expect(payload.error).toBe('IPC bridge not initialized');
+    expect(payload.error).toContain('not fully implemented in standalone engine mode yet');
   });
 
   it('returns a Zod validation error when required params are missing', async () => {

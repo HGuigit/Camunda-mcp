@@ -2,6 +2,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import { z } from 'zod';
+import { engine } from '../engine';
 import {
   createModelSchema, addStartEventSchema, addTaskSchema, addEndEventSchema,
   connectElementsSchema, createFormSchema, addFormFieldSchema, linkFormToTaskSchema,
@@ -82,6 +83,14 @@ async function createModel(
   const name = parsed.name || diagramId;
   const fileName = `${name}.bpmn`;
   const filePath = path.join(os.tmpdir(), fileName);
+
+  // If running standalone, use engine
+  if (!ipcBridge) {
+    const res = await engine.createModel(name);
+    return {
+      content: [{ type: 'text', text: JSON.stringify(res) }],
+    };
+  }
 
   // Write the BPMN XML to a temp file
   try {
@@ -677,20 +686,56 @@ export async function dispatch(
         }
 
         if (!ipcBridge) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  error: 'IPC bridge not initialized',
-                  message:
-                    'The renderer-side IPC bridge has not been wired yet. ' +
-                    'Ensure the Camunda Desktop Modeler is running with the plugin loaded.',
-                }),
-              },
-            ],
-            isError: true,
-          };
+          try {
+            if (toolName === 'add_start_event') {
+              const res = engine.addElement('bpmn:StartEvent', params.name as string, params.x as number, params.y as number);
+              await engine.save();
+              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+            } else if (toolName === 'add_end_event') {
+              const res = engine.addElement('bpmn:EndEvent', params.name as string, params.x as number, params.y as number);
+              await engine.save();
+              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+            } else if (toolName === 'add_task') {
+              const res = engine.addElement(params.type as string || 'bpmn:Task', params.name as string, params.x as number, params.y as number);
+              await engine.save();
+              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+            } else if (toolName === 'connect_elements') {
+              const res = engine.connectElements(params.sourceId as string, params.targetId as string);
+              await engine.save();
+              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+            } else if (toolName === 'add_gateway') {
+              const res = engine.addElement(params.type as string || 'bpmn:ExclusiveGateway', params.name as string, params.x as number, params.y as number);
+              await engine.save();
+              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+            } else if (toolName === 'set_properties') {
+              engine.setProperties(params.elementId as string, params);
+              await engine.save();
+              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+            } else if (toolName === 'set_io_mapping') {
+              engine.setIoMapping(params.elementId as string, params.inputs as any[], params.outputs as any[]);
+              await engine.save();
+              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+            } else if (toolName === 'set_task_headers') {
+              engine.setTaskHeaders(params.elementId as string, params.headers as any[]);
+              await engine.save();
+              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+            } else if (toolName === 'auto_layout') {
+              await engine.autoLayout();
+              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+            } else {
+              return {
+                content: [{ type: 'text', text: JSON.stringify({ error: `Tool ${toolName} not fully implemented in standalone engine mode yet.` }) }],
+                isError: true,
+              };
+            }
+            break;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            return {
+              content: [{ type: 'text', text: JSON.stringify({ error: message }) }],
+              isError: true,
+            };
+          }
         }
 
         // export_image: renderer returns SVG string or PNG base64, we write the file
