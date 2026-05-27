@@ -687,112 +687,165 @@ export async function dispatch(
 
         if (!ipcBridge) {
           try {
-            if (toolName === 'add_start_event') {
-              const res = engine.addElement('bpmn:StartEvent', params.name as string, params.x as number, params.y as number);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
-            } else if (toolName === 'add_end_event') {
-              const res = engine.addElement('bpmn:EndEvent', params.name as string, params.x as number, params.y as number);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
-            } else if (toolName === 'add_task') {
-              const res = engine.addElement(params.type as string || 'bpmn:Task', params.name as string, params.x as number, params.y as number);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
-            } else if (toolName === 'connect_elements') {
-              const res = engine.connectElements(params.sourceId as string, params.targetId as string);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
-            } else if (toolName === 'add_gateway') {
-              const res = engine.addElement(params.type as string || 'bpmn:ExclusiveGateway', params.name as string, params.x as number, params.y as number);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
-            } else if (toolName === 'set_properties') {
-              engine.setProperties(params.elementId as string, params);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
-            } else if (toolName === 'set_io_mapping') {
-              engine.setIoMapping(params.elementId as string, params.inputs as any[], params.outputs as any[]);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
-            } else if (toolName === 'set_task_headers') {
-              engine.setTaskHeaders(params.elementId as string, params.headers as any[]);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
-            } else if (toolName === 'auto_layout') {
-              await engine.autoLayout();
-              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
-            } else if (toolName === 'delete_element') {
-              engine.deleteElement(params.elementId as string);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
-            } else if (toolName === 'get_element') {
-              const el = engine.getElement(params.elementId as string);
-              result = { content: [{ type: 'text', text: JSON.stringify(el) }] };
-            } else if (toolName === 'list_elements') {
-              const elements = engine.listElements();
-              result = { content: [{ type: 'text', text: JSON.stringify({ elements }) }] };
-            } else if (toolName === 'get_diagram_xml') {
-              const xml = await engine.getDiagramXml();
-              result = { content: [{ type: 'text', text: JSON.stringify({ xml }) }] };
-            } else if (toolName === 'import_xml') {
-              await engine.importXml(params.xml as string);
-              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
-            } else if (toolName === 'move_element') {
-              engine.moveElement(params.elementId as string, params.x as number, params.y as number);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
-            } else if (toolName === 'resize_element') {
-              engine.resizeElement(params.elementId as string, params.width as number, params.height as number);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
-            } else if (toolName === 'set_flow_waypoints') {
-              engine.setFlowWaypoints(params.flowId as string, params.waypoints as any[]);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
-            } else if (toolName === 'add_event' || toolName === 'add_end_event_typed') {
-              const res = engine.addElement(params.type as string || 'bpmn:IntermediateCatchEvent', params.name as string, params.x as number, params.y as number);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
-            } else if (toolName === 'add_subprocess' || toolName === 'add_participant' || toolName === 'add_lane' || toolName === 'add_group' || toolName === 'add_annotation') {
-              let typeMap: Record<string, string> = {
-                add_subprocess: 'bpmn:SubProcess',
-                add_participant: 'bpmn:Participant',
-                add_lane: 'bpmn:Lane',
-                add_group: 'bpmn:Group',
-                add_annotation: 'bpmn:TextAnnotation'
-              };
-              const res = engine.addElement(params.type as string || typeMap[toolName], params.name as string, params.x as number, params.y as number);
-              if (params.width && params.height) {
-                engine.resizeElement(res.elementId, params.width as number, params.height as number);
+            switch (toolName) {
+              case 'add_start_event': {
+                const res = engine.addElement('bpmn:StartEvent', params.name as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
               }
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
-            } else if (toolName === 'patch_element') {
-              if (params.x !== undefined && params.y !== undefined) {
-                 engine.moveElement(params.elementId as string, params.x as number, params.y as number);
+              case 'add_end_event': {
+                const res = engine.addElement('bpmn:EndEvent', params.name as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
               }
-              if (params.waypoints !== undefined) {
-                 engine.setFlowWaypoints(params.elementId as string, params.waypoints as any[]);
+              case 'add_task': {
+                const res = engine.addElement(params.type as string || 'bpmn:Task', params.name as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
               }
-              engine.setProperties(params.elementId as string, params);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
-            } else if (toolName === 'add_message_flow') {
-              const res = engine.connectElements(params.sourceId as string, params.targetId as string);
-              await engine.save();
-              result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
-            } else if (toolName === 'batch_operations') {
-               // highly stubbed just to not error out completely
-               const operations = params.operations as any[];
-               result = { content: [{ type: 'text', text: JSON.stringify({ ok: operations.length, results: [] }) }] };
-            } else if (toolName === 'build_process') {
-               result = { content: [{ type: 'text', text: JSON.stringify({ idMap: {} }) }] };
-            } else {
-              return {
-                content: [{ type: 'text', text: JSON.stringify({ error: `Tool ${toolName} not fully implemented in standalone engine mode yet.` }) }],
-                isError: true,
-              };
+              case 'connect_elements': {
+                const res = engine.connectElements(params.sourceId as string, params.targetId as string);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'add_gateway': {
+                const res = engine.addElement(params.type as string || 'bpmn:ExclusiveGateway', params.name as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'set_properties': {
+                engine.setProperties(params.elementId as string, params);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'set_io_mapping': {
+                engine.setIoMapping(params.elementId as string, params.inputs as any[], params.outputs as any[]);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'set_task_headers': {
+                engine.setTaskHeaders(params.elementId as string, params.headers as any[]);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'auto_layout': {
+                await engine.autoLayout();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'delete_element': {
+                engine.deleteElement(params.elementId as string);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'get_element': {
+                const el = engine.getElement(params.elementId as string);
+                result = { content: [{ type: 'text', text: JSON.stringify(el) }] };
+                break;
+              }
+              case 'list_elements': {
+                const elements = engine.listElements();
+                result = { content: [{ type: 'text', text: JSON.stringify({ elements }) }] };
+                break;
+              }
+              case 'get_diagram_xml': {
+                const xml = await engine.getDiagramXml();
+                result = { content: [{ type: 'text', text: JSON.stringify({ xml }) }] };
+                break;
+              }
+              case 'import_xml': {
+                await engine.importXml(params.xml as string);
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'move_element': {
+                engine.moveElement(params.elementId as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'resize_element': {
+                engine.resizeElement(params.elementId as string, params.width as number, params.height as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'set_flow_waypoints': {
+                engine.setFlowWaypoints(params.flowId as string, params.waypoints as any[]);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'add_event':
+              case 'add_end_event_typed': {
+                const res = engine.addElement(params.type as string || 'bpmn:IntermediateCatchEvent', params.name as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'add_subprocess':
+              case 'add_participant':
+              case 'add_lane':
+              case 'add_group':
+              case 'add_annotation': {
+                let typeMap: Record<string, string> = {
+                  add_subprocess: 'bpmn:SubProcess',
+                  add_participant: 'bpmn:Participant',
+                  add_lane: 'bpmn:Lane',
+                  add_group: 'bpmn:Group',
+                  add_annotation: 'bpmn:TextAnnotation'
+                };
+                const res = engine.addElement(params.type as string || typeMap[toolName], params.name as string, params.x as number, params.y as number);
+                if (params.width && params.height) {
+                  engine.resizeElement(res.elementId, params.width as number, params.height as number);
+                }
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'patch_element': {
+                if (params.x !== undefined && params.y !== undefined) {
+                   engine.moveElement(params.elementId as string, params.x as number, params.y as number);
+                }
+                if (params.waypoints !== undefined) {
+                   engine.setFlowWaypoints(params.elementId as string, params.waypoints as any[]);
+                }
+                engine.setProperties(params.elementId as string, params);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'add_message_flow': {
+                const res = engine.connectElements(params.sourceId as string, params.targetId as string);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'batch_operations': {
+                 // highly stubbed just to not error out completely
+                 const operations = params.operations as any[];
+                 result = { content: [{ type: 'text', text: JSON.stringify({ ok: operations.length, results: [] }) }] };
+                 break;
+              }
+              case 'build_process': {
+                 result = { content: [{ type: 'text', text: JSON.stringify({ idMap: {} }) }] };
+                 break;
+              }
+              default: {
+                return {
+                  content: [{ type: 'text', text: JSON.stringify({ error: `Tool ${toolName} not fully implemented in standalone engine mode yet.` }) }],
+                  isError: true,
+                };
+              }
             }
             break;
           } catch (err) {
