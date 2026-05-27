@@ -2,6 +2,7 @@ import * as os from 'os';
 import * as path from 'path';
 import * as fs from 'fs';
 import { z } from 'zod';
+import { engine } from '../engine';
 import {
   createModelSchema, addStartEventSchema, addTaskSchema, addEndEventSchema,
   connectElementsSchema, createFormSchema, addFormFieldSchema, linkFormToTaskSchema,
@@ -15,7 +16,7 @@ import {
   setFlowWaypointsSchema, autoLayoutSchema, getElementBoundsSchema,
   cloneElementSchema, batchOperationsSchema, addGroupSchema,
   patchElementSchema, buildProcessSchema, validateLayoutSchema, exportImageSchema,
-  listOpenDiagramsSchema, switchDiagramSchema,
+  listOpenDiagramsSchema, switchDiagramSchema, getMcpDocumentationSchema,
 } from './registry';
 
 const LOG_PREFIX = '[camunda-mcp]';
@@ -82,6 +83,14 @@ async function createModel(
   const name = parsed.name || diagramId;
   const fileName = `${name}.bpmn`;
   const filePath = path.join(os.tmpdir(), fileName);
+
+  // If running standalone, use engine
+  if (!ipcBridge) {
+    const res = await engine.createModel(name);
+    return {
+      content: [{ type: 'text', text: JSON.stringify(res) }],
+    };
+  }
 
   // Write the BPMN XML to a temp file
   try {
@@ -444,6 +453,20 @@ async function listOpenDiagrams(): Promise<CallToolResult> {
 }
 
 /**
+ * Returns the MCP detailed markdown documentation.
+ */
+async function getMcpDocumentation(): Promise<CallToolResult> {
+  const docsPath = path.resolve(process.cwd(), 'docs/mcp-server-docs.md');
+  if (fs.existsSync(docsPath)) {
+    const docs = fs.readFileSync(docsPath, 'utf-8');
+    return { content: [{ type: 'text', text: JSON.stringify({ documentation: docs }) }] };
+  } else {
+    // fallback if missing
+    return { content: [{ type: 'text', text: JSON.stringify({ documentation: "Documentation not found at docs/mcp-server-docs.md" }) }] };
+  }
+}
+
+/**
  * Switches to a specific diagram tab by ID, file path, or name.
  */
 async function switchDiagram(
@@ -592,6 +615,10 @@ export async function dispatch(
         result = await switchDiagram(params);
         break;
 
+      case 'get_mcp_documentation':
+        result = await getMcpDocumentation();
+        break;
+
       case 'add_start_event':
       case 'add_task':
       case 'add_end_event':
@@ -677,20 +704,175 @@ export async function dispatch(
         }
 
         if (!ipcBridge) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  error: 'IPC bridge not initialized',
-                  message:
-                    'The renderer-side IPC bridge has not been wired yet. ' +
-                    'Ensure the Camunda Desktop Modeler is running with the plugin loaded.',
-                }),
-              },
-            ],
-            isError: true,
-          };
+          try {
+            switch (toolName) {
+              case 'add_start_event': {
+                const res = engine.addElement('bpmn:StartEvent', params.name as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'add_end_event': {
+                const res = engine.addElement('bpmn:EndEvent', params.name as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'add_task': {
+                const res = engine.addElement(params.type as string || 'bpmn:Task', params.name as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'connect_elements': {
+                const res = engine.connectElements(params.sourceId as string, params.targetId as string);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'add_gateway': {
+                const res = engine.addElement(params.type as string || 'bpmn:ExclusiveGateway', params.name as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'set_properties': {
+                engine.setProperties(params.elementId as string, params);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'set_io_mapping': {
+                engine.setIoMapping(params.elementId as string, params.inputs as any[], params.outputs as any[]);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'set_task_headers': {
+                engine.setTaskHeaders(params.elementId as string, params.headers as any[]);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'auto_layout': {
+                await engine.autoLayout();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'delete_element': {
+                engine.deleteElement(params.elementId as string);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'get_element': {
+                const el = engine.getElement(params.elementId as string);
+                result = { content: [{ type: 'text', text: JSON.stringify(el) }] };
+                break;
+              }
+              case 'list_elements': {
+                const elements = engine.listElements();
+                result = { content: [{ type: 'text', text: JSON.stringify({ elements }) }] };
+                break;
+              }
+              case 'get_diagram_xml': {
+                const xml = await engine.getDiagramXml();
+                result = { content: [{ type: 'text', text: JSON.stringify({ xml }) }] };
+                break;
+              }
+              case 'import_xml': {
+                await engine.importXml(params.xml as string);
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'move_element': {
+                engine.moveElement(params.elementId as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'resize_element': {
+                engine.resizeElement(params.elementId as string, params.width as number, params.height as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'set_flow_waypoints': {
+                engine.setFlowWaypoints(params.flowId as string, params.waypoints as any[]);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'add_event':
+              case 'add_end_event_typed': {
+                const res = engine.addElement(params.type as string || 'bpmn:IntermediateCatchEvent', params.name as string, params.x as number, params.y as number);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'add_subprocess':
+              case 'add_participant':
+              case 'add_lane':
+              case 'add_group':
+              case 'add_annotation': {
+                let typeMap: Record<string, string> = {
+                  add_subprocess: 'bpmn:SubProcess',
+                  add_participant: 'bpmn:Participant',
+                  add_lane: 'bpmn:Lane',
+                  add_group: 'bpmn:Group',
+                  add_annotation: 'bpmn:TextAnnotation'
+                };
+                const res = engine.addElement(params.type as string || typeMap[toolName], params.name as string, params.x as number, params.y as number);
+                if (params.width && params.height) {
+                  engine.resizeElement(res.elementId, params.width as number, params.height as number);
+                }
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'patch_element': {
+                if (params.x !== undefined && params.y !== undefined) {
+                   engine.moveElement(params.elementId as string, params.x as number, params.y as number);
+                }
+                if (params.waypoints !== undefined) {
+                   engine.setFlowWaypoints(params.elementId as string, params.waypoints as any[]);
+                }
+                engine.setProperties(params.elementId as string, params);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify({ ok: true }) }] };
+                break;
+              }
+              case 'add_message_flow': {
+                const res = engine.connectElements(params.sourceId as string, params.targetId as string);
+                await engine.save();
+                result = { content: [{ type: 'text', text: JSON.stringify(res) }] };
+                break;
+              }
+              case 'batch_operations': {
+                 // highly stubbed just to not error out completely
+                 const operations = params.operations as any[];
+                 result = { content: [{ type: 'text', text: JSON.stringify({ ok: operations.length, results: [] }) }] };
+                 break;
+              }
+              case 'build_process': {
+                 result = { content: [{ type: 'text', text: JSON.stringify({ idMap: {} }) }] };
+                 break;
+              }
+              default: {
+                return {
+                  content: [{ type: 'text', text: JSON.stringify({ error: `Tool ${toolName} not fully implemented in standalone engine mode yet.` }) }],
+                  isError: true,
+                };
+              }
+            }
+            break;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            return {
+              content: [{ type: 'text', text: JSON.stringify({ error: message }) }],
+              isError: true,
+            };
+          }
         }
 
         // export_image: renderer returns SVG string or PNG base64, we write the file

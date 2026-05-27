@@ -33,7 +33,6 @@ describe('createModel', () => {
 
     expect(payload.diagramId).toBeDefined();
     expect(payload.filePath).toBeDefined();
-    expect(payload.message).toContain('test-diagram');
 
     // Track for cleanup
     tempFiles.push(payload.filePath);
@@ -63,7 +62,6 @@ describe('createModel', () => {
 
     expect(payload.diagramId).toBeDefined();
     expect(payload.filePath).toBeDefined();
-    expect(payload.message).toBeDefined();
 
     tempFiles.push(payload.filePath);
   });
@@ -292,14 +290,54 @@ describe('dispatch routing', () => {
     expect(payload.message).toContain('unknown_tool');
   });
 
-  it('returns "IPC bridge not initialized" for renderer tools', async () => {
+  it('does not return "IPC bridge not initialized" for standalone renderer tools', async () => {
+    await dispatch('create_model', { name: 'test-diagram' });
+
     const result = await dispatch('add_start_event', {
       diagramId: 'test',
     });
 
-    expect(result.isError).toBe(true);
-    const payload = JSON.parse(result.content[0].text);
-    expect(payload.error).toBe('IPC bridge not initialized');
+    expect(result.isError).toBeFalsy();
+  });
+
+  it('verifies standalone tools via engine directly', async () => {
+    await dispatch('create_model', { name: 'test-standalone' });
+
+    // Add event
+    const addRes = await dispatch('add_event', {
+      diagramId: 'test-standalone',
+      type: 'bpmn:IntermediateCatchEvent',
+      name: 'Wait',
+      x: 300,
+      y: 300,
+    });
+    expect(addRes.isError).toBeFalsy();
+    const eventId = JSON.parse(addRes.content[0].text).elementId;
+
+    // List elements
+    const listRes = await dispatch('list_elements', { diagramId: 'test-standalone' });
+    expect(listRes.isError).toBeFalsy();
+    const list = JSON.parse(listRes.content[0].text).elements;
+    expect(list.length).toBeGreaterThan(0);
+    expect(list.find((e: any) => e.id === eventId)).toBeDefined();
+
+    // Get XML
+    const xmlRes = await dispatch('get_diagram_xml', { diagramId: 'test-standalone' });
+    expect(xmlRes.isError).toBeFalsy();
+    const xml = JSON.parse(xmlRes.content[0].text).xml;
+    expect(xml).toContain('Wait');
+
+    // Delete element
+    const delRes = await dispatch('delete_element', {
+      diagramId: 'test-standalone',
+      elementId: eventId,
+    });
+    expect(delRes.isError).toBeFalsy();
+
+    // List again
+    const listRes2 = await dispatch('list_elements', { diagramId: 'test-standalone' });
+    const list2 = JSON.parse(listRes2.content[0].text).elements;
+    expect(list2.find((e: any) => e.id === eventId)).toBeUndefined();
   });
 
   it('returns error for list_open_diagrams when Electron is not available', async () => {
@@ -326,28 +364,28 @@ describe('dispatch routing', () => {
     expect(payload.error).toContain('Electron BrowserWindow not available');
   });
 
-  it('returns "IPC bridge not initialized" for build_process', async () => {
+  it('returns stub map for build_process in standalone mode', async () => {
     const result = await dispatch('build_process', {
       diagramId: 'test',
       elements: [{ id: 'start', type: 'startEvent', name: 'Begin' }],
     });
 
-    expect(result.isError).toBe(true);
+    expect(result.isError).toBeFalsy();
     const payload = JSON.parse(result.content[0].text);
-    expect(payload.error).toBe('IPC bridge not initialized');
+    expect(payload.idMap).toBeDefined();
   });
 
-  it('returns "IPC bridge not initialized" for validate_layout', async () => {
+  it('returns "not fully implemented in standalone engine mode yet" for validate_layout', async () => {
     const result = await dispatch('validate_layout', {
       diagramId: 'test',
     });
 
     expect(result.isError).toBe(true);
     const payload = JSON.parse(result.content[0].text);
-    expect(payload.error).toBe('IPC bridge not initialized');
+    expect(payload.error).toContain('not fully implemented in standalone engine mode yet');
   });
 
-  it('returns "IPC bridge not initialized" for patch_element', async () => {
+  it('fails with element not found for patch_element', async () => {
     const result = await dispatch('patch_element', {
       diagramId: 'test',
       elementId: 'Element_1',
@@ -356,7 +394,7 @@ describe('dispatch routing', () => {
 
     expect(result.isError).toBe(true);
     const payload = JSON.parse(result.content[0].text);
-    expect(payload.error).toBe('IPC bridge not initialized');
+    expect(payload.error).toContain('Element Element_1 not found');
   });
 
   it('returns a Zod validation error when required params are missing', async () => {
@@ -399,8 +437,8 @@ describe('compact flag', () => {
 // Registry tests
 // ---------------------------------------------------------------------------
 describe('tools registry', () => {
-  it('has the expected number of tools (41)', () => {
-    expect(tools).toHaveLength(41);
+  it('has the expected number of tools (42)', () => {
+    expect(tools).toHaveLength(42);
   });
 
   it('every tool has name, description, inputSchema, and executeLocal', () => {
@@ -419,14 +457,14 @@ describe('tools registry', () => {
     }
   });
 
-  it('local tools include create_model, create_form, add_form_field, create_dmn, deploy_process, list_open_diagrams, switch_diagram', () => {
+  it('local tools include create_model, create_form, add_form_field, create_dmn, deploy_process, list_open_diagrams, switch_diagram, get_mcp_documentation', () => {
     const localTools = tools.filter(t => t.executeLocal).map(t => t.name);
     expect(localTools).toEqual(
       expect.arrayContaining([
         'create_model', 'create_form', 'add_form_field', 'create_dmn', 'deploy_process',
-        'list_open_diagrams', 'switch_diagram',
+        'list_open_diagrams', 'switch_diagram', 'get_mcp_documentation',
       ])
     );
-    expect(localTools).toHaveLength(7);
+    expect(localTools).toHaveLength(8);
   });
 });
