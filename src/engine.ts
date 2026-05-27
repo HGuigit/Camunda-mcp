@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-// @ts-ignore
-import { BpmnModdle } from 'bpmn-moddle';
+const BpmnModdleMod = require('bpmn-moddle');
+const BpmnModdle = BpmnModdleMod.default || BpmnModdleMod.BpmnModdle || BpmnModdleMod;
 // @ts-ignore
 import camundaModdleDescriptor from 'camunda-bpmn-moddle/resources/camunda';
 // @ts-ignore
@@ -98,8 +98,37 @@ export class BpmnEngine {
 
     // Create semantic element
     const element = this.moddle.create(type, { id, name, ...props });
-    if (!process.flowElements) process.flowElements = [];
-    process.flowElements.push(element);
+
+    if (['bpmn:Participant', 'bpmn:MessageFlow'].includes(type)) {
+      if (!this.rootDefinitions.rootElements) this.rootDefinitions.rootElements = [];
+      let collab = this.rootDefinitions.rootElements.find((e: any) => e.$type === 'bpmn:Collaboration');
+      if (!collab) {
+        collab = this.moddle.create('bpmn:Collaboration', { id: `Collaboration_${Math.random().toString(36).substr(2, 9)}` });
+        this.rootDefinitions.rootElements.push(collab);
+      }
+      if (type === 'bpmn:Participant') {
+        if (!collab.participants) collab.participants = [];
+        collab.participants.push(element);
+      } else {
+        if (!collab.messageFlows) collab.messageFlows = [];
+        collab.messageFlows.push(element);
+      }
+    } else if (['bpmn:TextAnnotation', 'bpmn:Group'].includes(type)) {
+      if (!process.artifacts) process.artifacts = [];
+      process.artifacts.push(element);
+    } else if (type === 'bpmn:Lane') {
+      if (!process.laneSets) process.laneSets = [];
+      let laneSet = process.laneSets[0];
+      if (!laneSet) {
+        laneSet = this.moddle.create('bpmn:LaneSet', { id: `LaneSet_${Math.random().toString(36).substr(2, 9)}` });
+        process.laneSets.push(laneSet);
+      }
+      if (!laneSet.lanes) laneSet.lanes = [];
+      laneSet.lanes.push(element);
+    } else {
+      if (!process.flowElements) process.flowElements = [];
+      process.flowElements.push(element);
+    }
 
     // Create DI shape
     const bounds = this.moddle.create('dc:Bounds', { x, y, width: 100, height: 80 });
@@ -157,7 +186,7 @@ export class BpmnEngine {
 
   setProperties(elementId: string, props: any) {
     const process = this.getProcess();
-    const element = process.flowElements.find((e: any) => e.id === elementId);
+    const element = process.flowElements?.find((e: any) => e.id === elementId);
     if (!element) throw new Error(`Element ${elementId} not found`);
 
     if (props.name !== undefined) element.name = props.name;
@@ -187,6 +216,33 @@ export class BpmnEngine {
     // Camunda Element Templates
     if (props.modelerTemplate) {
       element.set('camunda:modelerTemplate', props.modelerTemplate);
+    }
+
+    // Inline Scripts / Execution Listeners stub
+    if (props.executionListeners && Array.isArray(props.executionListeners)) {
+      let extensionElements = element.extensionElements;
+      if (!extensionElements) {
+        extensionElements = this.moddle.create('bpmn:ExtensionElements', { values: [] });
+        element.extensionElements = extensionElements;
+      }
+
+      props.executionListeners.forEach((listener: any) => {
+        const el = this.moddle.create('camunda:ExecutionListener', { event: listener.event });
+        if (listener.script) {
+          const script = this.moddle.create('camunda:Script', {
+            scriptFormat: listener.script.format || 'javascript',
+            value: listener.script.value
+          });
+          el.script = script;
+        } else if (listener.class) {
+          el.class = listener.class;
+        } else if (listener.expression) {
+          el.expression = listener.expression;
+        } else if (listener.delegateExpression) {
+          el.delegateExpression = listener.delegateExpression;
+        }
+        extensionElements.values.push(el);
+      });
     }
   }
 
@@ -247,6 +303,104 @@ export class BpmnEngine {
         if (!properties.values) properties.values = [];
         properties.values.push(prop);
       });
+    }
+  }
+
+  deleteElement(elementId: string) {
+    const process = this.getProcess();
+    const plane = this.getPlane();
+
+    if (!process.flowElements) return;
+
+    // Find element
+    const elementIndex = process.flowElements.findIndex((e: any) => e.id === elementId);
+    if (elementIndex === -1) throw new Error(`Element ${elementId} not found`);
+    const element = process.flowElements[elementIndex];
+
+    // Remove sequence flows attached to it
+    if (element.incoming) {
+      element.incoming.forEach((flow: any) => {
+        const flowIndex = process.flowElements.findIndex((e: any) => e.id === flow.id);
+        if (flowIndex !== -1) process.flowElements.splice(flowIndex, 1);
+        if (plane.planeElement) {
+            const diIndex = plane.planeElement.findIndex((di: any) => di.bpmnElement?.id === flow.id);
+            if (diIndex !== -1) plane.planeElement.splice(diIndex, 1);
+        }
+      });
+    }
+    if (element.outgoing) {
+      element.outgoing.forEach((flow: any) => {
+        const flowIndex = process.flowElements.findIndex((e: any) => e.id === flow.id);
+        if (flowIndex !== -1) process.flowElements.splice(flowIndex, 1);
+        if (plane.planeElement) {
+            const diIndex = plane.planeElement.findIndex((di: any) => di.bpmnElement?.id === flow.id);
+            if (diIndex !== -1) plane.planeElement.splice(diIndex, 1);
+        }
+      });
+    }
+
+    // Remove element
+    process.flowElements.splice(elementIndex, 1);
+
+    // Remove DI
+    if (plane.planeElement) {
+        const diIndex = plane.planeElement.findIndex((di: any) => di.bpmnElement?.id === elementId);
+        if (diIndex !== -1) plane.planeElement.splice(diIndex, 1);
+    }
+  }
+
+  getElement(elementId: string) {
+    const process = this.getProcess();
+    if (!process.flowElements) return null;
+    return process.flowElements.find((e: any) => e.id === elementId);
+  }
+
+  listElements() {
+    const process = this.getProcess();
+    if (!process.flowElements) return [];
+    return process.flowElements.map((e: any) => ({ id: e.id, type: e.$type, name: e.name }));
+  }
+
+  async getDiagramXml() {
+    if (!this.rootDefinitions) return null;
+    const { xml } = await this.moddle.toXML(this.rootDefinitions, { format: true });
+    return xml;
+  }
+
+  async importXml(xml: string) {
+    const { rootElement } = await this.moddle.fromXML(xml);
+    this.rootDefinitions = rootElement;
+    if (this.currentFilePath) {
+      await this.save();
+    }
+  }
+
+  moveElement(elementId: string, x: number, y: number) {
+    const plane = this.getPlane();
+    if (!plane.planeElement) return;
+    const shape = plane.planeElement.find((di: any) => di.bpmnElement?.id === elementId);
+    if (shape && shape.bounds) {
+        shape.bounds.x = x - (shape.bounds.width / 2); // Center x
+        shape.bounds.y = y - (shape.bounds.height / 2); // Center y
+    }
+  }
+
+  resizeElement(elementId: string, width: number, height: number) {
+    const plane = this.getPlane();
+    if (!plane.planeElement) return;
+    const shape = plane.planeElement.find((di: any) => di.bpmnElement?.id === elementId);
+    if (shape && shape.bounds) {
+        shape.bounds.width = width;
+        shape.bounds.height = height;
+    }
+  }
+
+  setFlowWaypoints(flowId: string, waypoints: any[]) {
+    const plane = this.getPlane();
+    if (!plane.planeElement) return;
+    const edge = plane.planeElement.find((di: any) => di.bpmnElement?.id === flowId);
+    if (edge) {
+      edge.waypoint = waypoints.map((wp: any) => this.moddle.create('dc:Point', { x: wp.x, y: wp.y }));
     }
   }
 
